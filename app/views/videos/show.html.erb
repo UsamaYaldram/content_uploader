@@ -1,0 +1,51 @@
+<div class="mx-auto md:w-2/3 w-full flex flex-col">
+  <% if notice.present? %>
+    <p class="py-2 px-3 bg-green-50 mb-5 text-green-500 font-medium rounded-lg inline-block"><%= notice %></p>
+  <% end %>
+
+  <div class="mx-auto">
+    <% if @video.video_file.attached? %>
+      <div class="mb-4">
+        <%= video_tag(url_for(@video.video_file), controls: true, class: "max-w-full h-auto") %>
+      </div>
+    <% end %>
+
+    <div class="mb-4">
+      <h1 class="font-bold text-4xl mb-3"><%= @video.title %></h1>
+      <p class="text-gray-700"><%= @video.description %></p>
+    </div>
+
+    <div class="mb-4">
+      <p>
+        <strong class="block font-medium mb-1">Status:</strong>
+        <span class="<%= status_color_class(@video.status) %> py-1 px-2 rounded-full text-sm">
+          <%= @video.status %>
+        </span>
+      </p>
+    </div>
+
+    <div class="mb-4">
+      <p>
+        <strong class="block font-medium mb-1">Platform:</strong>
+        <%= @video.platform_type.titleize %>
+      </p>
+    </div>
+
+    <% if @video.platform_id.present? %>
+      <div class="mb-4">
+        <p>
+          <strong class="block font-medium mb-1">Platform ID:</strong>
+          <%= @video.platform_id %>
+        </p>
+      </div>
+    <% end %>
+  </div>
+
+  <div class="mt-8">
+    <%= link_to 'Edit this video', edit_video_path(@video), class: "mt-2 rounded-lg py-3 px-5 bg-gray-100 inline-block font-medium" %>
+    <div class="inline-block ml-2">
+      <%= button_to 'Delete this video', video_path(@video), method: :delete, class: "mt-2 rounded-lg py-3 px-5 bg-red-600 text-white font-medium", data: { turbo_confirm: "Are you sure you want to delete this video?" } %>
+    </div>
+    <%= link_to 'Back to videos', videos_path, class: "ml-2 rounded-lg py-3 px-5 bg-gray-100 inline-block font-medium" %>
+  </div>
+</div>

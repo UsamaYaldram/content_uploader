@@ -1,0 +1,45 @@
+<div class="mx-auto md:w-2/3 w-full">
+  <h1 class="font-bold text-4xl">Editing video</h1>
+
+  <%= form_with(model: @video, class: "contents") do |form| %>
+    <% if @video.errors.any? %>
+      <div id="error_explanation" class="bg-red-50 text-red-500 px-3 py-2 font-medium rounded-lg mt-3">
+        <h2><%= pluralize(@video.errors.count, "error") %> prohibited this video from being saved:</h2>
+
+        <ul>
+          <% @video.errors.each do |error| %>
+            <li><%= error.full_message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <div class="my-5">
+      <%= form.label :title %>
+      <%= form.text_field :title, class: "block shadow rounded-md border border-gray-200 outline-none px-3 py-2 mt-2 w-full" %>
+    </div>
+
+    <div class="my-5">
+      <%= form.label :description %>
+      <%= form.text_area :description, rows: 4, class: "block shadow rounded-md border border-gray-200 outline-none px-3 py-2 mt-2 w-full" %>
+    </div>
+
+    <div class="my-5">
+      <%= form.label :platform_type %>
+      <%= form.select :platform_type, [['YouTube', 'youtube'], ['TikTok', 'tiktok']], {}, class: "block shadow rounded-md border border-gray-200 outline-none px-3 py-2 mt-2 w-full" %>
+    </div>
+
+    <div class="my-5">
+      <%= form.label :video_file, "Replace video file (optional)" %>
+      <%= form.file_field :video_file, class: "block shadow rounded-md border border-gray-200 outline-none px-3 py-2 mt-2 w-full", accept: "video/*" %>
+      <% if @video.video_file.attached? %>
+        <p class="text-sm text-gray-500 mt-1">Current file: <%= @video.video_file.filename %></p>
+      <% end %>
+    </div>
+
+    <div class="inline">
+      <%= form.submit class: "rounded-lg py-3 px-5 bg-blue-600 text-white inline-block font-medium cursor-pointer" %>
+      <%= link_to 'Back to videos', videos_path, class: "rounded-lg py-3 px-5 bg-gray-100 inline-block font-medium" %>
+    </div>
+  <% end %>
+</div> 

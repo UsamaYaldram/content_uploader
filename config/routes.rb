@@ -1,4 +1,10 @@
 Rails.application.routes.draw do
+  root "videos#index"
+  resources :videos
+  get '/oauth2callback', to: 'oauth#callback'
+  get "videos/new"
+  get "videos/create"
+  get "videos/show"
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
