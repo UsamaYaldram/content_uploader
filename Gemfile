@@ -42,7 +42,7 @@ gem "thruster", require: false
 # YouTube API integration
 gem "google-api-client", "~> 0.53.0"
 gem "googleauth", "~> 1.1"
-gem "active_storage_validations", "~> 1.0"
+gem "active_storage_validations", "~> 2.0"
 gem "google-apis-youtube_v3"
 
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
