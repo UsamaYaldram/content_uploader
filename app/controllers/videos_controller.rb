@@ -33,6 +33,7 @@ class VideosController < ApplicationController
 
   def update
     if @video.update(video_params)
+      Rails.logger.info "Video #{@video.id} status changed to #{@video.status}"
       if video_params[:video_file].present?
         @video.update(status: :pending)
         VideoUploadJob.perform_later(@video.id)

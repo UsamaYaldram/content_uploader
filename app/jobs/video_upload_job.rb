@@ -37,10 +37,11 @@ class VideoUploadJob < ApplicationJob
         
         # Update video with YouTube ID and URL
         video.update!(
-          status: :uploaded,
+          status: 'uploaded',
           platform_id: youtube_id,
-          youtube_url: "https://youtube.com/watch?v=#{youtube_id}"
+          youtube_url: "https://www.youtube.com/watch?v=#{youtube_id}"
         )
+        Rails.logger.info "Video #{video.id} status updated to uploaded"
       ensure
         # Clean up the temporary file
         temp_file.close
