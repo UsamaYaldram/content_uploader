@@ -39,7 +39,12 @@
               <span class="text-sm text-gray-500">
                 <%= video.platform_type.titleize %>
               </span>
-              <%= link_to 'View Details', video_path(video), class: "text-sm font-medium text-indigo-600 hover:text-indigo-500" %>
+              <div class="flex space-x-4">
+                <% if video.status == 'uploaded' && video.youtube_url.present? %>
+                  <%= link_to 'Watch on YouTube', video.youtube_url, target: '_blank', class: "text-sm font-medium text-red-600 hover:text-red-500" %>
+                <% end %>
+                <%= link_to 'View Details', video_path(video), class: "text-sm font-medium text-indigo-600 hover:text-indigo-500" %>
+              </div>
             </div>
           </div>
         </div>

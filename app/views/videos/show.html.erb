@@ -31,13 +31,24 @@
       </p>
     </div>
 
-    <% if @video.platform_id.present? %>
-      <div class="mb-4">
-        <p>
-          <strong class="block font-medium mb-1">Platform ID:</strong>
-          <%= @video.platform_id %>
-        </p>
-      </div>
+    <% if @video.platform_type == 'youtube' %>
+      <% if @video.youtube_url.present? %>
+        <div class="mb-4">
+          <p>
+            <strong class="block font-medium mb-1">YouTube URL:</strong>
+            <%= link_to @video.youtube_url, @video.youtube_url, target: '_blank', class: "text-blue-600 hover:text-blue-800" %>
+          </p>
+        </div>
+      <% end %>
+      
+      <% if @video.platform_id.present? %>
+        <div class="mb-4">
+          <p>
+            <strong class="block font-medium mb-1">YouTube Video ID:</strong>
+            <%= @video.platform_id %>
+          </p>
+        </div>
+      <% end %>
     <% end %>
   </div>
 
