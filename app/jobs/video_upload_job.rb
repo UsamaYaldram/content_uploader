@@ -37,7 +37,7 @@ class VideoUploadJob < ApplicationJob
         
         # Update video with YouTube ID and URL
         video.update!(
-          status: :completed,
+          status: :uploaded,
           platform_id: youtube_id,
           youtube_url: "https://youtube.com/watch?v=#{youtube_id}"
         )
