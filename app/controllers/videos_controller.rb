@@ -17,17 +17,18 @@ class VideosController < ApplicationController
 
   def create
     @video = Video.new(video_params)
-
+    
     if @video.save
+      # Store video ID in session in case we need to restart the upload after authorization
+      session[:pending_video_id] = @video.id
+      
+      # Start the upload job
       VideoUploadJob.perform_later(@video.id)
-      redirect_to @video, notice: 'Video was successfully created. Upload started.'
+      
+      redirect_to videos_path, notice: 'Video was successfully created and upload has started.'
     else
-      render :new, status: :unprocessable_entity
+      render :new
     end
-  rescue Google::Apis::AuthorizationError
-    # Store the video ID in the session so we can resume the upload after authorization
-    session[:pending_video_id] = @video.id
-    redirect_to YoutubeService.authorization_url, allow_other_host: true
   end
 
   def update

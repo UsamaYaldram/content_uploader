@@ -9,70 +9,73 @@ class YoutubeService
   SCOPE = [
     'https://www.googleapis.com/auth/youtube.upload',
     'https://www.googleapis.com/auth/youtube'
-  ].freeze
+  ]
 
-  def initialize
-    Rails.logger.info "Initializing YouTube service"
+  def initialize(video_path:, title:, description:, category_id: '22', privacy_status: 'unlisted', keywords: '')
+    @video_path = video_path
+    @title = title
+    @description = description
+    @category_id = category_id
+    @privacy_status = privacy_status
+    @keywords = keywords
     @service = Google::Apis::YoutubeV3::YouTubeService.new
     @service.client_options.application_name = APPLICATION_NAME
-    Rails.logger.info "Setting up authorization"
     @service.authorization = authorize
   end
 
-  def upload_video(video, title:, description:)
+  def upload
     Rails.logger.info "Starting video upload process"
     check_credentials!
 
     begin
-      Rails.logger.info "Creating video snippet"
-      # Create the video snippet
-      video_snippet = Google::Apis::YoutubeV3::VideoSnippet.new(
-        title: title,
-        description: description
-      )
-
-      Rails.logger.info "Creating video status"
-      # Create the video status
-      video_status = Google::Apis::YoutubeV3::VideoStatus.new(
-        privacy_status: 'private' # You can change this to 'public' or 'unlisted'
-      )
-
-      Rails.logger.info "Creating YouTube video object"
-      # Create the video object
-      youtube_video = Google::Apis::YoutubeV3::Video.new(
-        snippet: video_snippet,
-        status: video_status
-      )
-
-      Rails.logger.info "Getting video file path"
-      # Get the video file path
-      video_path = ActiveStorage::Blob.service.path_for(video.video_file.key)
-      Rails.logger.info "Video file path: #{video_path}"
-
-      unless File.exist?(video_path)
-        Rails.logger.error "Video file not found at path: #{video_path}"
-        raise "Video file not found"
+      # Verify file exists and is readable
+      unless File.exist?(@video_path) && File.readable?(@video_path)
+        Rails.logger.error "Video file not found or not readable: #{@video_path}"
+        raise "Video file not found or not readable"
       end
 
-      Rails.logger.info "Starting YouTube upload"
-      # Upload the video
+      # Create video snippet
+      snippet = Google::Apis::YoutubeV3::VideoSnippet.new(
+        title: @title,
+        description: @description,
+        tags: @keywords.split(','),
+        category_id: @category_id
+      )
+
+      # Create video status
+      status = Google::Apis::YoutubeV3::VideoStatus.new(
+        privacy_status: @privacy_status
+      )
+
+      # Create video object
+      video = Google::Apis::YoutubeV3::Video.new(
+        snippet: snippet,
+        status: status
+      )
+
+      Rails.logger.info "Created video object with title: #{@title}"
+
+      # Upload video
+      Rails.logger.info "Uploading video file from path: #{@video_path}"
       result = @service.insert_video(
         'snippet,status',
-        youtube_video,
-        upload_source: video_path,
-        content_type: 'video/*'
+        video,
+        upload_source: @video_path,
+        content_type: 'video/mp4'
       )
 
       Rails.logger.info "Upload completed successfully. Video ID: #{result.id}"
-      result.id
+      result
+    rescue Google::Apis::AuthorizationError => e
+      Rails.logger.error "Authorization error: #{e.message}"
+      raise
     rescue Google::Apis::ClientError => e
-      Rails.logger.error "YouTube API client error: #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
-      raise "YouTube API error: #{e.message}"
+      Rails.logger.error "Client error: #{e.message}"
+      raise
     rescue StandardError => e
-      Rails.logger.error "Unexpected error during YouTube upload: #{e.message}"
+      Rails.logger.error "Error uploading video: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
-      raise "Upload failed: #{e.message}"
+      raise
     end
   end
 
@@ -131,51 +134,51 @@ class YoutubeService
 
   def check_credentials!
     Rails.logger.info "Checking YouTube credentials"
-    credentials = Rails.application.credentials.youtube
-    unless credentials && credentials[:client_id] && credentials[:client_secret]
+    unless Rails.application.credentials.youtube[:client_id] && Rails.application.credentials.youtube[:client_secret]
       Rails.logger.error "YouTube credentials not found"
-      raise "YouTube credentials not found in Rails credentials"
+      raise "YouTube credentials not found. Please check your Rails credentials."
     end
-    Rails.logger.info "YouTube credentials found"
   end
 
   def authorize
-    Rails.logger.info "Setting up authorization"
-    check_credentials!
-    
-    credentials = Rails.application.credentials.youtube
-    client_id = Google::Auth::ClientId.new(
-      credentials[:client_id],
-      credentials[:client_secret]
+    Rails.logger.info "Starting authorization process"
+    client_id = Google::Auth::ClientId.from_hash(
+      {
+        "installed" => {
+          "client_id" => Rails.application.credentials.youtube[:client_id],
+          "client_secret" => Rails.application.credentials.youtube[:client_secret],
+          "redirect_uris" => [OOB_URI],
+          "auth_uri" => "https://accounts.google.com/o/oauth2/auth",
+          "token_uri" => "https://oauth2.googleapis.com/token"
+        }
+      }
     )
-    Rails.logger.info "Creating client ID"
 
-    token_store = Google::Auth::Stores::FileTokenStore.new(
-      file: File.join(Rails.root, 'tmp', 'youtube-tokens.yaml')
-    )
-    Rails.logger.info "Setting up token store"
-
-    authorizer = Google::Auth::UserAuthorizer.new(
-      client_id,
-      SCOPE,
-      token_store,
-      OOB_URI
-    )
-    Rails.logger.info "Creating authorizer"
+    token_store = Google::Auth::Stores::FileTokenStore.new(file: 'tmp/youtube-tokens.yaml')
+    authorizer = Google::Auth::UserAuthorizer.new(client_id, SCOPE, token_store)
 
     user_id = 'default'
-    Rails.logger.info "Getting credentials for user: #{user_id}"
     credentials = authorizer.get_credentials(user_id)
-    
+
     if credentials.nil?
-      Rails.logger.info "No existing credentials found, requesting new authorization"
-      raise Google::Apis::AuthorizationError, "Authorization required"
+      Rails.logger.info "No credentials found, checking for authorization code"
+      auth_code_path = Rails.root.join('tmp', 'youtube-auth-code.txt')
+      
+      if File.exist?(auth_code_path)
+        Rails.logger.info "Found authorization code, exchanging for tokens"
+        code = File.read(auth_code_path).strip
+        credentials = authorizer.get_and_store_credentials_from_code(
+          user_id: user_id,
+          code: code,
+          base_url: OOB_URI
+        )
+        File.delete(auth_code_path) # Clean up the code file after use
+      else
+        Rails.logger.error "No authorization code found"
+        raise "No authorization code found. Please authorize the application first."
+      end
     end
 
     credentials
-  rescue StandardError => e
-    Rails.logger.error "Authorization failed: #{e.message}"
-    Rails.logger.error e.backtrace.join("\n")
-    raise
   end
 end 

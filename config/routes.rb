@@ -1,7 +1,7 @@
 Rails.application.routes.draw do
   root "videos#index"
   resources :videos
-  get '/oauth2callback', to: 'oauth#callback'
+  get 'oauth2callback', to: 'oauth#callback'
   get "videos/new"
   get "videos/create"
   get "videos/show"
