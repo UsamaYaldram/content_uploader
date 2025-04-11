@@ -2,65 +2,112 @@ class VideoUploadJob < ApplicationJob
   queue_as :default
 
   def perform(video_id)
-    video = Video.find(video_id)
-    Rails.logger.info "Starting video upload for video #{video.id}"
-    
+    @video = Video.find_by(id: video_id)
+    return log_error("Video not found with ID: #{video_id}") unless @video
+
     begin
-      # Update status to processing
-      video.update!(status: :processing)
-      
-      # Get the video file content
-      Rails.logger.info "Downloading video file"
-      video_file = video.video_file.download
-      Rails.logger.info "Video file downloaded successfully"
-      
-      # Create a temporary file for upload
-      temp_file = Tempfile.new(['video', '.mp4'])
-      begin
-        temp_file.binmode
-        temp_file.write(video_file)
-        temp_file.close
-        
-        Rails.logger.info "Created temporary file at: #{temp_file.path}"
-        
-        # Upload to YouTube
-        Rails.logger.info "Uploading to YouTube: #{video.title}"
-        youtube_service = YoutubeService.new(
-          video_path: temp_file.path,
-          title: video.title,
-          description: video.description
-        )
-        
-        result = youtube_service.upload
-        youtube_id = result.id
-        Rails.logger.info "Successfully uploaded to YouTube. Video ID: #{youtube_id}"
-        
-        # Update video with YouTube ID and URL
-        video.update!(
-          status: 'uploaded',
-          platform_id: youtube_id,
-          youtube_url: "https://www.youtube.com/watch?v=#{youtube_id}"
-        )
-        Rails.logger.info "Video #{video.id} status updated to uploaded"
-      ensure
-        # Clean up the temporary file
-        temp_file.close
-        temp_file.unlink
-      end
-      
-    rescue Google::Apis::AuthorizationError => e
-      Rails.logger.error "Authorization error: #{e.message}"
-      video.update!(status: :failed)
-      raise
-    rescue Google::Apis::ClientError => e
-      Rails.logger.error "Client error: #{e.message}"
-      video.update!(status: :failed)
-      raise
+      log_info("Starting video upload for video #{@video.id}")
+      update_video_status(:processing)
+      upload_to_platform
     rescue StandardError => e
-      Rails.logger.error "Error uploading video: #{e.message}"
-      Rails.logger.error e.backtrace.join("\n")
-      video.update!(status: :failed)
-      raise "Failed to upload video: #{e.message}"
+      handle_error(e)
     end
+  end
+
+  private
+
+  def upload_to_platform
+    case @video.platform_type
+    when 'youtube'
+      upload_to_youtube
+    else
+      raise "Unsupported platform: #{@video.platform_type}"
+    end
+  end
+
+  def upload_to_youtube
+    log_info("Uploading to YouTube: #{@video.title}")
+    
+    # Create a temporary file for upload
+    temp_file = create_temp_file
+    begin
+      youtube_service = YoutubeService.new
+      youtube_id = youtube_service.upload_video(
+        @video.title,
+        @video.description,
+        temp_file.path
+      )
+
+      handle_successful_upload(youtube_id)
+    ensure
+      # Clean up the temporary file
+      temp_file.close
+      temp_file.unlink
+    end
+  rescue Google::Apis::AuthorizationError => e
+    handle_authorization_error(e)
+  rescue Google::Apis::ClientError => e
+    handle_client_error(e)
+  rescue StandardError => e
+    handle_upload_error(e)
+  end
+
+  def create_temp_file
+    log_info("Creating temporary file for upload")
+    temp_file = Tempfile.new(['video', '.mp4'])
+    temp_file.binmode
+    
+    # Download the video file content
+    log_info("Downloading video file content")
+    video_content = @video.video_file.download
+    temp_file.write(video_content)
+    temp_file.close
+    
+    log_info("Temporary file created at: #{temp_file.path}")
+    temp_file
+  end
+
+  def handle_successful_upload(youtube_id)
+    log_info("Successfully uploaded to YouTube. Video ID: #{youtube_id}")
+    
+    @video.update!(
+      status: :uploaded,
+      platform_id: youtube_id,
+      youtube_url: "https://www.youtube.com/watch?v=#{youtube_id}"
+    )
+    
+    log_info("Video #{@video.id} status updated to uploaded")
+  end
+
+  def handle_authorization_error(error)
+    log_error("Authorization error: #{error.message}")
+    update_video_status(:failed)
+    raise error
+  end
+
+  def handle_client_error(error)
+    log_error("YouTube API error: #{error.message}")
+    update_video_status(:failed)
+    raise error
+  end
+
+  def handle_upload_error(error)
+    log_error("Upload error: #{error.message}")
+    log_error(error.backtrace.join("\n"))
+    update_video_status(:failed)
+    raise error
+  end
+
+  def update_video_status(status)
+    @video.update!(status: status)
+    log_info("Video #{@video.id} status updated to #{status}")
+  end
+
+  def log_info(message)
+    Rails.logger.info("[VideoUploadJob] #{message}")
+  end
+
+  def log_error(message)
+    Rails.logger.error("[VideoUploadJob] #{message}")
   end
 end
