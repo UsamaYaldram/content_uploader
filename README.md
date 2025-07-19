@@ -1,24 +1,20 @@
-# README
+# 📹 YouTube Uploader Rails App
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+A Ruby on Rails application that allows users to upload videos directly to a connected YouTube channel using the YouTube Data API v3.
 
-Things you may want to cover:
+## 🚀 Features
 
-* Ruby version
+- 🔐 OAuth 2.0 authentication with Google
+- 📤 Upload videos to a connected YouTube channel
+- 📝 Add metadata (title, description, tags, privacy status)
+- 🗂 Track uploaded video status
+- 🧾 Basic logging and error handling
 
-* System dependencies
+## 🧰 Tech Stack
 
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+- Ruby on Rails 7+
+- PostgreSQL
+- Tailwind CSS (via Rails CSS bundling)
+- Stimulus & Turbo (Hotwire)
+- YouTube Data API v3
+- OmniAuth for Google OAuth2
